@@ -109,9 +109,9 @@ def calculate_ratio_gueilee(row):
         return "Fracionado"
 
 def calculate_ratio(row):
-    if row['peso'] == 0:  # Verifica se o divisor é zero
+    if row['peso'] == 0: 
         return 0
-    elif row['Peso Informado'] % row['peso'] == 0:  # Verifica se é uma divisão exata
+    elif row['Peso Informado'] % row['peso'] == 0:  
         return row['Peso Informado'] / row['peso']
     else:
         return row['Peso Informado'] / row['peso']
