@@ -6,10 +6,12 @@ import warnings
 from pandas.errors import DtypeWarning
 from pandas.errors import ParserWarning
 import sys
+import gc
 
 from banco import *
 from gerais import *
-from csv_config import V2DataSet, DescProdDataSet, BQDataSet, ProjDataSet, MagaDataSet, NetsDataSet
+from csv_config import V2DataSet, DescProdDataSet, ProjDataSet
+from bq import consulta_bq, consulta_bq_nets, consulta_bq_maga
 
 os.environ['TMPDIR'] = 'D:\Tmpdf'
 os.environ['TMP'] = 'D:\\Tmpdf'
@@ -84,7 +86,7 @@ def Entrega_50 (df_v2):
     for i in range(0, len(df_v2['Nro. Entrega']), chunk_size):
         df_slice = df_v2['Nro. Entrega'].iloc[i:i+chunk_size]
         df_slice.to_csv(f'D:\\PRojetos\\Bases\\Reajuste_Frete\\txt_descr\\dataframe_part_{i//chunk_size + 1}.txt', sep='\t', index=False)
-        sys.exit()
+    #sys.exit()
 
 #=======================================================================================#
 # MÉTODO PARA CONVERSÃO DAS COLUNAS PARA FLOAT
@@ -111,7 +113,7 @@ def calculate_ratio_gueilee(row):
 def calculate_ratio(row):
     if row['peso'] == 0: 
         return 0
-    elif row['Peso Informado'] % row['peso'] == 0:  
+    elif row['Peso Informado'] % row['peso'] == 0:
         return row['Peso Informado'] / row['peso']
     else:
         return row['Peso Informado'] / row['peso']
@@ -194,13 +196,17 @@ def main():
 
     df_v22 = df_desc.merge(df_v2,left_on=['Solicitação','Nro. Pedido'], right_on=['Nro. Entrega','Nro. Pedido'], how='right')
 
+    del df_v2,df_desc1 
+    gc.collect()
     #=======================================================================================#
     # LEITURA BQ
     #=======================================================================================#
+    # ADD Consulta BQ 07.11.2022
 
     print('Iniciando BQ.')
-    bq_data = BQDataSet(cam_bq)
-    df_bq = read_and_combine_files(bq_data)
+    #bq_data = BQDataSet(cam_bq)
+    #df_bq = read_and_combine_files(bq_data)
+    df_bq = consulta_bq()
     print('BQ finalizado.',df_bq.count())
 
     #=======================================================================================#
@@ -270,24 +276,32 @@ def main():
 
     df_listesku = df_bqv2projcont['sku']
     df_listesku.drop_duplicates(inplace=True)
-    df_listesku.to_csv(f'D:\\PRojetos\\Bases\\Reajuste_Frete\\txt_descr\\skus.csv', sep=';', index=False)
+    #df_listesku.to_csv(f'D:\\PRojetos\\Bases\\Reajuste_Frete\\txt_descr\\skus.csv', sep=';', index=False)
 
     #=======================================================================================#
     # Processo leitura sku_bq
     # após baixar os dados no bq da lista a cima
+    # atualizacao para automacao bq
     #=======================================================================================#
 
-    maga_data = MagaDataSet(cam_magalu)
-    df_skubqmagalu = read_and_combine_files(maga_data)
+    #maga_data = MagaDataSet(cam_magalu)
+    #df_skubqmagalu = read_and_combine_files(maga_data)
+    df_skumagalu = df_listesku[~df_listesku['sku'].str.contains('-')]
+    list_skumagalu = df_skumagalu['sku'].tolist()
+    df_skubqmagalu = consulta_bq_maga (list_skumagalu)
     
     #=======================================================================================#
     # somente NETSHOES por conta dos valores em CM, G. *** falta realizar ***
     # *** fazer a conversão ***
     # 
     #=======================================================================================#
+    # Alteração para automacao das consultas no bq, que demandam bastante tempo
+    #nets_data = NetsDataSet(cam_nets)
+    #df_skubqnets = read_and_combine_files(nets_data)
 
-    nets_data = NetsDataSet(cam_nets)
-    df_skubqnets = read_and_combine_files(nets_data)
+    df_skunets = df_listesku[df_listesku['sku'].str.contains('-')]
+    list_skunets = df_skunets['sku'].tolist()
+    df_skubqnets = consulta_bq_nets(list_skunets)
 
     # LIMPANDO DESCRICAO POIS VEM BASTANTE EXPRESSAO REGULAR
     df_skubqnets['descricao'] = df_skubqnets['descricao'].str.replace('\r', '', regex=True)
@@ -307,16 +321,16 @@ def main():
 
     df_skumaganets = pd.concat([df_skubqnets, df_skubqmagalu], ignore_index=True)
 
-    print(df_skubqmagalu.count())
-    print(df_skubqnets.count())
-    print(df_skumaganets.count())
+    del df_skubqmagalu,df_skubqmagalu
+    gc.collect()
 
     #=======================================================================================#
     # df_bqv2projcont é o é o bq + v2 (cont) + info cadastro
     #=======================================================================================#
 
     df_projebq = df_bqv2projcont.merge(df_skumaganets, on='sku', how = 'inner')
-
+    del df_skumaganets,df_bqv2projcont,df_bqv2
+    gc.collect()
     #=======================================================================================#
     # Aplicar a função nas colunas específicas do df_projebq
     #=======================================================================================#
@@ -413,7 +427,6 @@ def main():
         soli_list.drop_duplicates(inplace=True)
         results2 = lista_banco(soli_str, cursor)
 
-
     df_endereco = pd.DataFrame(results2, columns=['Pedido','Numero_Entrega_Documento', 'Valor_Mercadoria'])
     df_endereco.drop_duplicates('Pedido',inplace = True)
 
@@ -463,6 +476,9 @@ def main():
     df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(classify_value(ranges))
     df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(classify_value(ranges))
 
+    df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(classify_value)
+    df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(classify_value)
+
     df_projebq['Houve mudança de faixa?'] = df_projebq.apply(lambda row: "Não" if abs(row['Class Peso taxado atual'] == row['Class Peso taxado recalculado']) else "Sim", axis=1)
 
     #=======================================================================================#
@@ -474,7 +490,7 @@ def main():
                 'ICMS Atual', 'ICMS Recalculado','Valor Total Atual','Valor Total Recalculado','descricao','altura', 'largura', 'profundidade', 'peso',
                 'Peso Informado', 'Peso Aferido','Aferido > informado','Aferido 100% < Informado','Aferido <> 0,100','Apenas 1 sku','Nº Inteiro','Peso unitário',
                 'Moda', 'Mediana','Mediana X Cadastro','Qtd SKU x Peso Mediano', 'Analise 30%','Cubagem Informada', 'Cubagem Aferida',
-                'Peso taxado Atual','Class Peso taxado atual','Peso taxado Recalculado','Class Peso taxado recalculado','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
+                'Peso taxado Atual','Class Peso taxado atual','Peso taxado Recalculado','Class Peso taxado recalculado','Houve mudança de faixa?','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
                 'UF Pessoa Visita']].to_excel(cam_fin, index=False)
 
 

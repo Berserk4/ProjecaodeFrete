@@ -1,0 +1,8 @@
+select  
+pedido, 
+seller, 
+sku, 
+from `maga-bigdata.advanced_analytics.levers_prazo_3p_processado` 
+where tipo_malha in ('malha-direta', 'malha-redespacho', 'malha-redespacho-cross') 
+and dt_cancelamento is null 
+and data_pedido >= '{data}'
