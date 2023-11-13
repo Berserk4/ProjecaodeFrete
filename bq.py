@@ -13,18 +13,20 @@ def consulta_bq ():
         query = file.read()
         
     data_atual = datetime.today()
-
     data_bq = data_atual - relativedelta(months=1)
     data_bq = data_bq.replace(day=24)
     dia_24 = data_bq.strftime('%Y-%m-%d')
+
     query = query.format(data=dia_24)
     df = pd.read_gbq(query,project_id = prj_id)
+
     return df
 
 def consulta_bq_maga(list):
 
     chunk_size = 50000
     sku_chunks = [list[i:i + chunk_size] for i in range(0, len(list), chunk_size)]
+
     df_final = pd.DataFrame()
 
     with open(r'D:\\PRojetos\\Codes\\GFL\\Financeiro\\NewReajusteFrete\\querys\\maga.txt', 'r') as file:  
@@ -42,6 +44,7 @@ def consulta_bq_nets(list):
 
     chunk_size = 50000
     sku_chunks = [list[i:i + chunk_size] for i in range(0, len(list), chunk_size)]
+    
     df_final = pd.DataFrame()
 
     with open(r'D:\\PRojetos\\Codes\\GFL\\Financeiro\\NewReajusteFrete\\querys\\nets.txt', 'r') as file:  

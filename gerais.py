@@ -11,7 +11,7 @@ cam_nets = r'D:\\PRojetos\Bases\\Reajuste_Frete\\txt_descr\Descricao unidicada\\
 
 # CAMINHO DO EXCEL DE SAIDA
 
-cam_fin = r'C:\\Users\\PedroFerreiraMouraBa\Desktop\\Nova pasta (7)\\reajuste_de_frete.xlsx'
+cam_fin = r'C:\\Users\\PedroFerreiraMouraBa\Desktop\\Nova pasta (7)\\reajuste_de_frete(TESTE).csv'
 
 #===============================================================================
 

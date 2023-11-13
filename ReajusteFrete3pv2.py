@@ -66,6 +66,14 @@ def lista_banco(soli_str, cursor):
 
     return results
 
+#==========================================================================================
+
+def semi_iqr(data):
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    semi_iqr_value = (q3 - q1) / 2
+    return semi_iqr_value
+
 #=======================================================================================#
 # MÉTODO PARA CONVERSÃO DAS COLUNAS PARA FLOAT * SOMENTE NA LEITURA DOS ARQUIVOS
 #=======================================================================================#
@@ -94,6 +102,12 @@ def Entrega_50 (df_v2):
 
 def convert_to_float(s):
     return float(s.replace(',', '.'))
+
+def convert_float_columns(df):
+    for column in df.columns:
+        if df[column].dtype == 'float64':
+            df[column] = df[column].apply(lambda x: str(x).replace('.', ','))
+    return df
 
 #=======================================================================================#
 # ESSES DOIS FAZEM O MESMO PROCESSO A DIFEREÇA É QUE UM ESCREVE NA COLUNA E O OUTRO O VALOR
@@ -286,8 +300,10 @@ def main():
 
     #maga_data = MagaDataSet(cam_magalu)
     #df_skubqmagalu = read_and_combine_files(maga_data)
-    df_skumagalu = df_listesku[~df_listesku['sku'].str.contains('-')]
-    list_skumagalu = df_skumagalu['sku'].tolist()
+    # atualizado lista 13/11/2023
+    df_skumagalu = df_listesku[~df_listesku.str.contains('-')]
+
+    list_skumagalu = df_skumagalu.tolist()
     df_skubqmagalu = consulta_bq_maga (list_skumagalu)
     
     #=======================================================================================#
@@ -299,8 +315,8 @@ def main():
     #nets_data = NetsDataSet(cam_nets)
     #df_skubqnets = read_and_combine_files(nets_data)
 
-    df_skunets = df_listesku[df_listesku['sku'].str.contains('-')]
-    list_skunets = df_skunets['sku'].tolist()
+    df_skunets = df_listesku[df_listesku.str.contains('-')]
+    list_skunets = df_skunets.tolist()
     df_skubqnets = consulta_bq_nets(list_skunets)
 
     # LIMPANDO DESCRICAO POIS VEM BASTANTE EXPRESSAO REGULAR
@@ -408,13 +424,12 @@ def main():
     #=======================================================================================#
 
     agg_funcs = {
-        'Peso unitário': [custom_mode,'median']
+        'Peso unitário': ['median', semi_iqr]
     }
     #Correto é o comentado alteração para teste
     #result = df_projbq4.groupby('sku').agg(agg_funcs)
     result = df_projebq.groupby('sku').agg(agg_funcs)
-    result.columns = ['Moda','Mediana']
-
+    result.columns = ['Mediana','Semi_IQR']
     #=======================================================================================#
     # LEITURA DO BANCO DE DADOS A PARTIR DA LISTA DE PEDIDOS DO PROJECAO DE FRETE
     # RETORNA O VALOR DA NOTA E ENTREGA DOCUMENTO
@@ -484,15 +499,16 @@ def main():
     #=======================================================================================#
     # GERACAO DO ARQUIVO FINAL PARA ENVIO RONALDO
     #=======================================================================================#
+    df_projebq = convert_float_columns(df_projebq)
 
     df_projebq[['Nro. Remessa','Nro. Pedido','sku','count','Cliente','Filial','Tipo Serviço','Dt. Cadastro','Dt. Realização','Dt. Emissão CTe','Cod. Remetente',
-                'Valor Frete Peso Atual','Valor Frete Peso Atual','Gris Atual','Gris Recalculado', 'AdValores Atual', 'AdValores Recalculado',
+                'Valor Frete Peso Atual','Valor Frete Peso Recalculado','Gris Atual','Gris Recalculado', 'AdValores Atual', 'AdValores Recalculado',
                 'ICMS Atual', 'ICMS Recalculado','Valor Total Atual','Valor Total Recalculado','descricao','altura', 'largura', 'profundidade', 'peso',
                 'Peso Informado', 'Peso Aferido','Aferido > informado','Aferido 100% < Informado','Aferido <> 0,100','Apenas 1 sku','Nº Inteiro','Peso unitário',
-                'Moda', 'Mediana','Mediana X Cadastro','Qtd SKU x Peso Mediano', 'Analise 30%','Cubagem Informada', 'Cubagem Aferida',
-                'Peso taxado Atual','Class Peso taxado atual','Peso taxado Recalculado','Class Peso taxado recalculado','Houve mudança de faixa?','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
-                'UF Pessoa Visita']].to_excel(cam_fin, index=False)
-
+                 'Mediana','Semi_IQR','Mediana X Cadastro','Qtd SKU x Peso Mediano', 'Analise 30%','Cubagem Informada', 'Cubagem Aferida',
+                'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
+                #'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','CEP Pessoa Visita',
+                'UF Pessoa Visita']].to_csv(cam_fin,sep=';',encoding='latin1', index=False)
 
 if __name__ == "__main__":
     main()
