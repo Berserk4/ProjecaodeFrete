@@ -66,13 +66,7 @@ def lista_banco(soli_str, cursor):
 
     return results
 
-#==========================================================================================
 
-def semi_iqr(data):
-    q1 = np.percentile(data, 25)
-    q3 = np.percentile(data, 75)
-    semi_iqr_value = (q3 - q1) / 2
-    return semi_iqr_value
 
 #=======================================================================================#
 # MÉTODO PARA CONVERSÃO DAS COLUNAS PARA FLOAT * SOMENTE NA LEITURA DOS ARQUIVOS
@@ -134,6 +128,7 @@ def calculate_ratio(row):
 
 #=======================================================================================#
 # FUNCAO PARA CALCULAR A MODA E MEDIANA
+# Desconsiderar essa funcao (nao mais ultilizada)
 #=======================================================================================#
 
 def custom_mode(s):
@@ -142,8 +137,16 @@ def custom_mode(s):
     # Se o maior valor de contagem for 1, retorne "Moda indisponível"
     if counts.iloc[0] == 1:
         return 'Moda indisponível'
-    # Caso contrário, retorne o primeiro índice da série counts (que é a moda)
+
     return counts.index[0]
+
+#==========================================================================================
+
+def semi_iqr(data):
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    semi_iqr_value = (q3 - q1) / 2
+    return semi_iqr_value
 
 #=======================================================================================#
 # ESSA FUNÇÃO FARA A VERIFICAÇÃO SE O VALOR DA MEDIANA É MAIOR QUE O PESO * 1.3(+30%)
@@ -304,6 +307,7 @@ def main():
     df_skumagalu = df_listesku[~df_listesku.str.contains('-')]
 
     list_skumagalu = df_skumagalu.tolist()
+    print('Consulta BQ SKU Magalu.')
     df_skubqmagalu = consulta_bq_maga (list_skumagalu)
     
     #=======================================================================================#
@@ -317,6 +321,7 @@ def main():
 
     df_skunets = df_listesku[df_listesku.str.contains('-')]
     list_skunets = df_skunets.tolist()
+    print('Consulta BQ SKU Nets.')
     df_skubqnets = consulta_bq_nets(list_skunets)
 
     # LIMPANDO DESCRICAO POIS VEM BASTANTE EXPRESSAO REGULAR
@@ -334,7 +339,7 @@ def main():
     #=======================================================================================#
     # CONCATENANDO BANCO DE CADASTRO MAGALU E NETSHOES
     #=======================================================================================#
-
+    print('Concatenando bases SKUs MAGANETS')
     df_skumaganets = pd.concat([df_skubqnets, df_skubqmagalu], ignore_index=True)
 
     del df_skubqmagalu,df_skubqmagalu
@@ -371,7 +376,7 @@ def main():
     # CRIA A COLUNA PESO UNITARIO
     #=======================================================================================#
 
-    
+    print('Peso unitario.')
     df_projebq['Peso unitário'] = np.where(
         df_projebq['Apenas 1 sku'] != 0, #EVITANDO DIVISÃO POR 0
         df_projebq['Peso Aferido'] / df_projebq['Apenas 1 sku'],
@@ -422,7 +427,7 @@ def main():
     #=======================================================================================#
     # Aplicando o calculo na base
     #=======================================================================================#
-
+    print('Calculo mediana e semi_iqr.')
     agg_funcs = {
         'Peso unitário': ['median', semi_iqr]
     }
@@ -434,7 +439,7 @@ def main():
     # LEITURA DO BANCO DE DADOS A PARTIR DA LISTA DE PEDIDOS DO PROJECAO DE FRETE
     # RETORNA O VALOR DA NOTA E ENTREGA DOCUMENTO
     #=======================================================================================#
-
+    print('Consulta DW_GFL.')
     with DatabaseConnection() as cursor:
         soli_list = df_projebq['Nro. Pedido']
         soli_list.count()
@@ -500,7 +505,7 @@ def main():
     # GERACAO DO ARQUIVO FINAL PARA ENVIO RONALDO
     #=======================================================================================#
     df_projebq = convert_float_columns(df_projebq)
-
+    print('Gerando CSV.')
     df_projebq[['Nro. Remessa','Nro. Pedido','sku','count','Cliente','Filial','Tipo Serviço','Dt. Cadastro','Dt. Realização','Dt. Emissão CTe','Cod. Remetente',
                 'Valor Frete Peso Atual','Valor Frete Peso Recalculado','Gris Atual','Gris Recalculado', 'AdValores Atual', 'AdValores Recalculado',
                 'ICMS Atual', 'ICMS Recalculado','Valor Total Atual','Valor Total Recalculado','descricao','altura', 'largura', 'profundidade', 'peso',
