@@ -489,13 +489,13 @@ def main():
     #df_projbq4[['Analise 30%','Mediana','peso']].to_csv(r'C:\Users\PedroFerreiraMouraBa\Desktop\Nova pasta (7).csv', sep=';')
     #colunas_df2 = ['SKU', 'Preço']
 
-    df_projebq['Peso taxado Atual'] = df_projebq['Peso taxado Atual'].apply(convert_to_float)
-    df_projebq['Peso taxado Recalculado'] = df_projebq['Peso taxado Recalculado'].apply(convert_to_float)
-    df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(classify_value(ranges))
-    df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(classify_value(ranges))
 
-    df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(classify_value)
-    df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(classify_value)
+    df_projebq['Peso taxado Atual'] = df_projebq['Peso taxado Atual'].apply(convert_to_float)
+    #df_projebq['Peso taxado Recalculado SKU'] = df_projebq['Qtd SKU x Peso Mediano'].apply(convert_to_float)
+    #df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(classify_value(ranges))
+    df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(lambda x: classify_value(x, ranges))
+    df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(lambda x: classify_value(x, ranges))
+    #df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(classify_value(ranges))
 
     df_projebq['Houve mudança de faixa?'] = df_projebq.apply(lambda row: "Não" if abs(row['Class Peso taxado atual'] == row['Class Peso taxado recalculado']) else "Sim", axis=1)
 
