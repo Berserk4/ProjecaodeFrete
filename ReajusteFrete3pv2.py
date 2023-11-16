@@ -421,8 +421,6 @@ def main():
     #df_projbq4 = df_projbq4[df_projbq2['pedido'].duplicated(keep=False) == False]
     df_projebq = df_projebq[df_projebq['pedido'].duplicated(keep=False) == False]
 
-    sample = pd.Series([11.88, 12.06, 11.81, 11.82, 11.89])
-    print(custom_mode(sample))
 
     #=======================================================================================#
     # Aplicando o calculo na base
@@ -510,7 +508,7 @@ def main():
                 'Valor Frete Peso Atual','Valor Frete Peso Recalculado','Gris Atual','Gris Recalculado', 'AdValores Atual', 'AdValores Recalculado',
                 'ICMS Atual', 'ICMS Recalculado','Valor Total Atual','Valor Total Recalculado','descricao','altura', 'largura', 'profundidade', 'peso',
                 'Peso Informado', 'Peso Aferido','Aferido > informado','Aferido 100% < Informado','Aferido <> 0,100','Apenas 1 sku','Nº Inteiro','Peso unitário',
-                 'Mediana','Semi_IQR','Mediana X Cadastro','Qtd SKU x Peso Mediano', 'Analise 30%','Cubagem Informada', 'Cubagem Aferida',
+                'Mediana','Semi_IQR','Mediana X Cadastro','Qtd SKU x Peso Mediano', 'Analise 30%','Cubagem Informada', 'Cubagem Aferida',
                 'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
                 #'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','CEP Pessoa Visita',
                 'UF Pessoa Visita']].to_csv(cam_fin,sep=';',encoding='latin1', index=False)
