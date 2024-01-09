@@ -10,7 +10,7 @@ import gc
 
 from banco import *
 from gerais import *
-from csv_config import V2DataSet, DescProdDataSet, ProjDataSet
+from csv_config import V2DataSet, DescProdDataSet, ProjDataSet,BQDataSet
 from bq import consulta_bq, consulta_bq_nets, consulta_bq_maga
 
 os.environ['TMPDIR'] = 'D:\Tmpdf'
@@ -223,9 +223,19 @@ def main():
     print('Iniciando BQ.')
     #bq_data = BQDataSet(cam_bq)
     #df_bq = read_and_combine_files(bq_data)
-    df_bq = consulta_bq()
-    print('BQ finalizado.',df_bq.count())
-
+    
+    if not os.listdir(cam_bq):
+        print('Sem arquivo na pasta, necessário consultar no BQ')
+        df_bq = consulta_bq()
+        nome_arqbq = os.path.join(cam_bq, 'df_bq.csv')
+        df_bq.to_csv(nome_arqbq, sep=',', encoding='utf8', index=False, lineterminator='\n')
+        print('Arquivo gerado')
+        print('BQ finalizado.',df_bq.count())
+    else:
+         print ('Lendo arquivo da pasta')
+         bq_data = BQDataSet(cam_bq)
+         df_bq = read_and_combine_files(bq_data)
+    print('Etapa BQ finalizada')
     #=======================================================================================#
     # JUNCAO BQ + V2
     #=======================================================================================#
