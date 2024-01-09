@@ -13,7 +13,7 @@ def consulta_bq ():
         query = file.read()
         
     data_atual = datetime.today()
-    data_bq = data_atual - relativedelta(months=1)
+    data_bq = data_atual - relativedelta(months=2)
     data_bq = data_bq.replace(day=24)
     dia_24 = data_bq.strftime('%Y-%m-%d')
 

@@ -168,7 +168,7 @@ def analise_30_percent(row):
 # CLASSIFICAÇÃO DE VALORES DE ACORDO COM A FAIXA
 #=======================================================================================#
 
-def classify_value(x):
+def classify_value(x,ranges):
     for low, high, label in ranges:
         if low <= x <= high:
             return label
@@ -293,7 +293,7 @@ def main():
 
     df_listesku = df_bqv2projcont['sku']
     df_listesku.drop_duplicates(inplace=True)
-    #df_listesku.to_csv(f'D:\\PRojetos\\Bases\\Reajuste_Frete\\txt_descr\\skus.csv', sep=';', index=False)
+    df_listesku.to_csv(f'D:\\PRojetos\\Bases\\Reajuste_Frete\\txt_descr\\skus23.csv', sep=';', index=False)
 
     #=======================================================================================#
     # Processo leitura sku_bq
@@ -342,7 +342,7 @@ def main():
     print('Concatenando bases SKUs MAGANETS')
     df_skumaganets = pd.concat([df_skubqnets, df_skubqmagalu], ignore_index=True)
 
-    del df_skubqmagalu,df_skubqmagalu
+    del df_skubqmagalu,df_skubqnets
     gc.collect()
 
     #=======================================================================================#
@@ -503,6 +503,7 @@ def main():
     # GERACAO DO ARQUIVO FINAL PARA ENVIO RONALDO
     #=======================================================================================#
     df_projebq = convert_float_columns(df_projebq)
+    df_projebq['Nro. Pedido'] = '="' + df_projebq['Nro. Pedido'].astype(str) + '"'
     print('Gerando CSV.')
     df_projebq[['Nro. Remessa','Nro. Pedido','sku','count','Cliente','Filial','Tipo Serviço','Dt. Cadastro','Dt. Realização','Dt. Emissão CTe','Cod. Remetente',
                 'Valor Frete Peso Atual','Valor Frete Peso Recalculado','Gris Atual','Gris Recalculado', 'AdValores Atual', 'AdValores Recalculado',
@@ -511,8 +512,22 @@ def main():
                 'Mediana','Semi_IQR','Mediana X Cadastro','Qtd SKU x Peso Mediano', 'Analise 30%','Cubagem Informada', 'Cubagem Aferida',
                 'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
                 #'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','CEP Pessoa Visita',
-                'UF Pessoa Visita']].to_csv(cam_fin,sep=';',encoding='latin1', index=False)
+                'UF Pessoa Visita']].to_csv(cam_fin,sep=';',encoding='utf-8', index=False)
+
+
+    #for col in df_projebq.columns:
+    #    for value in df_projebq[col].unique():
+    #        if isinstance(value, str):
+    #            if '\u"""2022' in value:
+    #                print(f'Caractere problemático encontrado na coluna {col}: {value}')
+
+    # Substituir o caractere de bullet point por uma string vazia ('') em todas as colunas de descrição
+    #for col in df_projebq.columns:
+    #    if 'descricao' in col.lower():  # Verificar se a coluna contém "descricao"
+    #        df_projebq[col] = df_projebq[col].str.replace('\u25fe', '', regex=False)
+
 
 if __name__ == "__main__":
     main()
+
 
