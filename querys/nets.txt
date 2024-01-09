@@ -1,0 +1,10 @@
+select distinct 
+sku,  
+description as descricao, 
+dimension.heightInCm as altura,   
+dimension.widthInCm as largura, 
+dimension.depthInCm as profundidade, 
+weightInGrams as peso, 
+ from maga-bigdata.netshoes_marketplace.mp_product_skus 
+-- unnest (sellers.list) seller 
+where sku in ('{formatted_skus}')

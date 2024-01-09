@@ -6,10 +6,12 @@ import warnings
 from pandas.errors import DtypeWarning
 from pandas.errors import ParserWarning
 import sys
+import gc
 
 from banco import *
 from gerais import *
-from csv_config import V2DataSet, DescProdDataSet, BQDataSet, ProjDataSet, MagaDataSet, NetsDataSet
+from csv_config import V2DataSet, DescProdDataSet, ProjDataSet
+from bq import consulta_bq, consulta_bq_nets, consulta_bq_maga
 
 os.environ['TMPDIR'] = 'D:\Tmpdf'
 os.environ['TMP'] = 'D:\\Tmpdf'
@@ -64,6 +66,8 @@ def lista_banco(soli_str, cursor):
 
     return results
 
+
+
 #=======================================================================================#
 # MÉTODO PARA CONVERSÃO DAS COLUNAS PARA FLOAT * SOMENTE NA LEITURA DOS ARQUIVOS
 #=======================================================================================#
@@ -84,7 +88,7 @@ def Entrega_50 (df_v2):
     for i in range(0, len(df_v2['Nro. Entrega']), chunk_size):
         df_slice = df_v2['Nro. Entrega'].iloc[i:i+chunk_size]
         df_slice.to_csv(f'D:\\PRojetos\\Bases\\Reajuste_Frete\\txt_descr\\dataframe_part_{i//chunk_size + 1}.txt', sep='\t', index=False)
-        sys.exit()
+    #sys.exit()
 
 #=======================================================================================#
 # MÉTODO PARA CONVERSÃO DAS COLUNAS PARA FLOAT
@@ -92,6 +96,12 @@ def Entrega_50 (df_v2):
 
 def convert_to_float(s):
     return float(s.replace(',', '.'))
+
+def convert_float_columns(df):
+    for column in df.columns:
+        if df[column].dtype == 'float64':
+            df[column] = df[column].apply(lambda x: str(x).replace('.', ','))
+    return df
 
 #=======================================================================================#
 # ESSES DOIS FAZEM O MESMO PROCESSO A DIFEREÇA É QUE UM ESCREVE NA COLUNA E O OUTRO O VALOR
@@ -111,13 +121,14 @@ def calculate_ratio_gueilee(row):
 def calculate_ratio(row):
     if row['peso'] == 0: 
         return 0
-    elif row['Peso Informado'] % row['peso'] == 0:  
+    elif row['Peso Informado'] % row['peso'] == 0:
         return row['Peso Informado'] / row['peso']
     else:
         return row['Peso Informado'] / row['peso']
 
 #=======================================================================================#
 # FUNCAO PARA CALCULAR A MODA E MEDIANA
+# Desconsiderar essa funcao (nao mais ultilizada)
 #=======================================================================================#
 
 def custom_mode(s):
@@ -126,8 +137,16 @@ def custom_mode(s):
     # Se o maior valor de contagem for 1, retorne "Moda indisponível"
     if counts.iloc[0] == 1:
         return 'Moda indisponível'
-    # Caso contrário, retorne o primeiro índice da série counts (que é a moda)
+
     return counts.index[0]
+
+#==========================================================================================
+
+def semi_iqr(data):
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    semi_iqr_value = (q3 - q1) / 2
+    return semi_iqr_value
 
 #=======================================================================================#
 # ESSA FUNÇÃO FARA A VERIFICAÇÃO SE O VALOR DA MEDIANA É MAIOR QUE O PESO * 1.3(+30%)
@@ -149,7 +168,7 @@ def analise_30_percent(row):
 # CLASSIFICAÇÃO DE VALORES DE ACORDO COM A FAIXA
 #=======================================================================================#
 
-def classify_value(x):
+def classify_value(x,ranges):
     for low, high, label in ranges:
         if low <= x <= high:
             return label
@@ -194,13 +213,17 @@ def main():
 
     df_v22 = df_desc.merge(df_v2,left_on=['Solicitação','Nro. Pedido'], right_on=['Nro. Entrega','Nro. Pedido'], how='right')
 
+    del df_v2,df_desc1 
+    gc.collect()
     #=======================================================================================#
     # LEITURA BQ
     #=======================================================================================#
+    # ADD Consulta BQ 07.11.2022
 
     print('Iniciando BQ.')
-    bq_data = BQDataSet(cam_bq)
-    df_bq = read_and_combine_files(bq_data)
+    #bq_data = BQDataSet(cam_bq)
+    #df_bq = read_and_combine_files(bq_data)
+    df_bq = consulta_bq()
     print('BQ finalizado.',df_bq.count())
 
     #=======================================================================================#
@@ -270,24 +293,36 @@ def main():
 
     df_listesku = df_bqv2projcont['sku']
     df_listesku.drop_duplicates(inplace=True)
-    df_listesku.to_csv(f'D:\\PRojetos\\Bases\\Reajuste_Frete\\txt_descr\\skus.csv', sep=';', index=False)
+    df_listesku.to_csv(f'D:\\PRojetos\\Bases\\Reajuste_Frete\\txt_descr\\skus23.csv', sep=';', index=False)
 
     #=======================================================================================#
     # Processo leitura sku_bq
     # após baixar os dados no bq da lista a cima
+    # atualizacao para automacao bq
     #=======================================================================================#
 
-    maga_data = MagaDataSet(cam_magalu)
-    df_skubqmagalu = read_and_combine_files(maga_data)
+    #maga_data = MagaDataSet(cam_magalu)
+    #df_skubqmagalu = read_and_combine_files(maga_data)
+    # atualizado lista 13/11/2023
+    df_skumagalu = df_listesku[~df_listesku.str.contains('-')]
+
+    list_skumagalu = df_skumagalu.tolist()
+    print('Consulta BQ SKU Magalu.')
+    df_skubqmagalu = consulta_bq_maga (list_skumagalu)
     
     #=======================================================================================#
     # somente NETSHOES por conta dos valores em CM, G. *** falta realizar ***
     # *** fazer a conversão ***
     # 
     #=======================================================================================#
+    # Alteração para automacao das consultas no bq, que demandam bastante tempo
+    #nets_data = NetsDataSet(cam_nets)
+    #df_skubqnets = read_and_combine_files(nets_data)
 
-    nets_data = NetsDataSet(cam_nets)
-    df_skubqnets = read_and_combine_files(nets_data)
+    df_skunets = df_listesku[df_listesku.str.contains('-')]
+    list_skunets = df_skunets.tolist()
+    print('Consulta BQ SKU Nets.')
+    df_skubqnets = consulta_bq_nets(list_skunets)
 
     # LIMPANDO DESCRICAO POIS VEM BASTANTE EXPRESSAO REGULAR
     df_skubqnets['descricao'] = df_skubqnets['descricao'].str.replace('\r', '', regex=True)
@@ -304,19 +339,19 @@ def main():
     #=======================================================================================#
     # CONCATENANDO BANCO DE CADASTRO MAGALU E NETSHOES
     #=======================================================================================#
-
+    print('Concatenando bases SKUs MAGANETS')
     df_skumaganets = pd.concat([df_skubqnets, df_skubqmagalu], ignore_index=True)
 
-    print(df_skubqmagalu.count())
-    print(df_skubqnets.count())
-    print(df_skumaganets.count())
+    del df_skubqmagalu,df_skubqnets
+    gc.collect()
 
     #=======================================================================================#
     # df_bqv2projcont é o é o bq + v2 (cont) + info cadastro
     #=======================================================================================#
 
     df_projebq = df_bqv2projcont.merge(df_skumaganets, on='sku', how = 'inner')
-
+    del df_skumaganets,df_bqv2projcont,df_bqv2
+    gc.collect()
     #=======================================================================================#
     # Aplicar a função nas colunas específicas do df_projebq
     #=======================================================================================#
@@ -341,7 +376,7 @@ def main():
     # CRIA A COLUNA PESO UNITARIO
     #=======================================================================================#
 
-    
+    print('Peso unitario.')
     df_projebq['Peso unitário'] = np.where(
         df_projebq['Apenas 1 sku'] != 0, #EVITANDO DIVISÃO POR 0
         df_projebq['Peso Aferido'] / df_projebq['Apenas 1 sku'],
@@ -386,33 +421,29 @@ def main():
     #df_projbq4 = df_projbq4[df_projbq2['pedido'].duplicated(keep=False) == False]
     df_projebq = df_projebq[df_projebq['pedido'].duplicated(keep=False) == False]
 
-    sample = pd.Series([11.88, 12.06, 11.81, 11.82, 11.89])
-    print(custom_mode(sample))
 
     #=======================================================================================#
     # Aplicando o calculo na base
     #=======================================================================================#
-
+    print('Calculo mediana e semi_iqr.')
     agg_funcs = {
-        'Peso unitário': [custom_mode,'median']
+        'Peso unitário': ['median', semi_iqr]
     }
     #Correto é o comentado alteração para teste
     #result = df_projbq4.groupby('sku').agg(agg_funcs)
     result = df_projebq.groupby('sku').agg(agg_funcs)
-    result.columns = ['Moda','Mediana']
-
+    result.columns = ['Mediana','Semi_IQR']
     #=======================================================================================#
     # LEITURA DO BANCO DE DADOS A PARTIR DA LISTA DE PEDIDOS DO PROJECAO DE FRETE
     # RETORNA O VALOR DA NOTA E ENTREGA DOCUMENTO
     #=======================================================================================#
-
+    print('Consulta DW_GFL.')
     with DatabaseConnection() as cursor:
         soli_list = df_projebq['Nro. Pedido']
         soli_list.count()
         soli_str = ', '.join([f"'{i}'" for i in soli_list])
         soli_list.drop_duplicates(inplace=True)
         results2 = lista_banco(soli_str, cursor)
-
 
     df_endereco = pd.DataFrame(results2, columns=['Pedido','Numero_Entrega_Documento', 'Valor_Mercadoria'])
     df_endereco.drop_duplicates('Pedido',inplace = True)
@@ -458,26 +489,45 @@ def main():
     #df_projbq4[['Analise 30%','Mediana','peso']].to_csv(r'C:\Users\PedroFerreiraMouraBa\Desktop\Nova pasta (7).csv', sep=';')
     #colunas_df2 = ['SKU', 'Preço']
 
+
     df_projebq['Peso taxado Atual'] = df_projebq['Peso taxado Atual'].apply(convert_to_float)
-    df_projebq['Peso taxado Recalculado'] = df_projebq['Peso taxado Recalculado'].apply(convert_to_float)
-    df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(classify_value(ranges))
-    df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(classify_value(ranges))
+    #df_projebq['Peso taxado Recalculado SKU'] = df_projebq['Qtd SKU x Peso Mediano'].apply(convert_to_float)
+    #df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(classify_value(ranges))
+    df_projebq['Class Peso taxado atual'] = df_projebq['Peso taxado Atual'].apply(lambda x: classify_value(x, ranges))
+    df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(lambda x: classify_value(x, ranges))
+    #df_projebq['Class Peso taxado recalculado'] = df_projebq['Qtd SKU x Peso Mediano'].apply(classify_value(ranges))
 
     df_projebq['Houve mudança de faixa?'] = df_projebq.apply(lambda row: "Não" if abs(row['Class Peso taxado atual'] == row['Class Peso taxado recalculado']) else "Sim", axis=1)
 
     #=======================================================================================#
     # GERACAO DO ARQUIVO FINAL PARA ENVIO RONALDO
     #=======================================================================================#
-
+    df_projebq = convert_float_columns(df_projebq)
+    df_projebq['Nro. Pedido'] = '="' + df_projebq['Nro. Pedido'].astype(str) + '"'
+    print('Gerando CSV.')
     df_projebq[['Nro. Remessa','Nro. Pedido','sku','count','Cliente','Filial','Tipo Serviço','Dt. Cadastro','Dt. Realização','Dt. Emissão CTe','Cod. Remetente',
-                'Valor Frete Peso Atual','Valor Frete Peso Atual','Gris Atual','Gris Recalculado', 'AdValores Atual', 'AdValores Recalculado',
+                'Valor Frete Peso Atual','Valor Frete Peso Recalculado','Gris Atual','Gris Recalculado', 'AdValores Atual', 'AdValores Recalculado',
                 'ICMS Atual', 'ICMS Recalculado','Valor Total Atual','Valor Total Recalculado','descricao','altura', 'largura', 'profundidade', 'peso',
                 'Peso Informado', 'Peso Aferido','Aferido > informado','Aferido 100% < Informado','Aferido <> 0,100','Apenas 1 sku','Nº Inteiro','Peso unitário',
-                'Moda', 'Mediana','Mediana X Cadastro','Qtd SKU x Peso Mediano', 'Analise 30%','Cubagem Informada', 'Cubagem Aferida',
-                'Peso taxado Atual','Class Peso taxado atual','Peso taxado Recalculado','Class Peso taxado recalculado','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
-                'UF Pessoa Visita']].to_excel(cam_fin, index=False)
+                'Mediana','Semi_IQR','Mediana X Cadastro','Qtd SKU x Peso Mediano', 'Analise 30%','Cubagem Informada', 'Cubagem Aferida',
+                'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
+                #'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','CEP Pessoa Visita',
+                'UF Pessoa Visita']].to_csv(cam_fin,sep=';',encoding='utf-8', index=False)
+
+
+    #for col in df_projebq.columns:
+    #    for value in df_projebq[col].unique():
+    #        if isinstance(value, str):
+    #            if '\u"""2022' in value:
+    #                print(f'Caractere problemático encontrado na coluna {col}: {value}')
+
+    # Substituir o caractere de bullet point por uma string vazia ('') em todas as colunas de descrição
+    #for col in df_projebq.columns:
+    #    if 'descricao' in col.lower():  # Verificar se a coluna contém "descricao"
+    #        df_projebq[col] = df_projebq[col].str.replace('\u25fe', '', regex=False)
 
 
 if __name__ == "__main__":
     main()
+
 

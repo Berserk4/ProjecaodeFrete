@@ -1,0 +1,9 @@
+select distinct 
+catalogo_navigation_id as sku, 
+catalogo_titulo as descricao, 
+catalogo_altura as altura, 
+catalogo_largura as largura, 
+catalogo_profundidade as profundidade, 
+catalogo_peso as peso
+from maga-bigdata.indicadores_qa.sku_catalogo 
+where catalogo_navigation_id in ('{formatted_skus}')
