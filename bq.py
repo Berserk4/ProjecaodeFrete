@@ -6,6 +6,10 @@ from dateutil.relativedelta import relativedelta
 
 load_dotenv(r'D:\\PRojetos\\Codes\\GFL\\Financeiro\\NewReajusteFrete\\querys\bq.env')
 prj_id = os.getenv('project-id')
+tbl_3p = os.getenv('3p_processado_tbl')
+tbl_maga = os.getenv('maga_tbl')
+tbl_nets = os.getenv('nets_tbl')
+
 
 def consulta_bq ():
 
@@ -17,7 +21,9 @@ def consulta_bq ():
     data_bq = data_bq.replace(day=24)
     dia_24 = data_bq.strftime('%Y-%m-%d')
 
-    query = query.format(data=dia_24)
+    query = query.format(data=dia_24, t3p_processado_tbl=tbl_3p)
+
+    
     df = pd.read_gbq(query,project_id = prj_id)
 
     return df
@@ -31,6 +37,7 @@ def consulta_bq_maga(list):
 
     with open(r'D:\\PRojetos\\Codes\\GFL\\Financeiro\\NewReajusteFrete\\querys\\maga.txt', 'r') as file:  
         query_template = file.read()
+    query_template = query.format(maga=tbl_maga)
 
     for skus in sku_chunks:
         formatted_skus = "','".join(skus)
@@ -49,6 +56,7 @@ def consulta_bq_nets(list):
 
     with open(r'D:\\PRojetos\\Codes\\GFL\\Financeiro\\NewReajusteFrete\\querys\\nets.txt', 'r') as file:  
         query_template = file.read()
+    query_template = query.format(nets=tbl_nets)
 
     for skus in sku_chunks:
         formatted_skus = "','".join(skus)

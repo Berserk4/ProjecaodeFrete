@@ -10,7 +10,7 @@ import gc
 
 from banco import *
 from gerais import *
-from csv_config import V2DataSet, DescProdDataSet, ProjDataSet,BQDataSet
+from csv_config import V2DataSet, DescProdDataSet, ProjDataSet,BQDataSet,MagaDataSet,NetsDataSet
 from bq import consulta_bq, consulta_bq_nets, consulta_bq_maga
 
 os.environ['TMPDIR'] = 'D:\Tmpdf'
@@ -223,6 +223,7 @@ def main():
     print('Iniciando BQ.')
     #bq_data = BQDataSet(cam_bq)
     #df_bq = read_and_combine_files(bq_data)
+    # etapa criada para redução de custo par cosultas feitas pelo Big query da google
     
     if not os.listdir(cam_bq):
         print('Sem arquivo na pasta, necessário consultar no BQ')
@@ -236,6 +237,7 @@ def main():
          bq_data = BQDataSet(cam_bq)
          df_bq = read_and_combine_files(bq_data)
     print('Etapa BQ finalizada')
+
     #=======================================================================================#
     # JUNCAO BQ + V2
     #=======================================================================================#
@@ -318,21 +320,40 @@ def main():
 
     list_skumagalu = df_skumagalu.tolist()
     print('Consulta BQ SKU Magalu.')
-    df_skubqmagalu = consulta_bq_maga (list_skumagalu)
-    
-    #=======================================================================================#
-    # somente NETSHOES por conta dos valores em CM, G. *** falta realizar ***
-    # *** fazer a conversão ***
-    # 
+    if not os.listdir(cam_magalu):
+        print('Sem arquivo na pasta, necessário consultar no BQ')
+        df_skubqmagalu = consulta_bq_maga (list_skumagalu)
+        nome_arqbq = os.path.join(cam_magalu, 'df_bqmagalu.csv')
+        df_skubqmagalu.to_csv(nome_arqbq, sep=',', encoding='utf8', index=False, lineterminator='\n')
+        print('Arquivo BQ MAGAZINE')
+    else:
+        print ('Lendo arquivo da pasta')
+        maga_data = MagaDataSet(cam_magalu)
+        df_skubqmagalu = read_and_combine_files(maga_data)
+        print('Etapa BQ finalizada')
+        
     #=======================================================================================#
     # Alteração para automacao das consultas no bq, que demandam bastante tempo
     #nets_data = NetsDataSet(cam_nets)
     #df_skubqnets = read_and_combine_files(nets_data)
-
+    #=======================================================================================#
+        
     df_skunets = df_listesku[df_listesku.str.contains('-')]
     list_skunets = df_skunets.tolist()
     print('Consulta BQ SKU Nets.')
-    df_skubqnets = consulta_bq_nets(list_skunets)
+
+    if not os.listdir(cam_nets):
+        print('Sem arquivo na pasta, necessário consultar no BQ')
+        df_skubqnets = consulta_bq_nets(list_skunets)
+        nome_arqbq = os.path.join(cam_nets, 'df_bq.csv')
+        df_skubqnets.to_csv(nome_arqbq, sep=',', encoding='utf8', index=False, lineterminator='\n')
+        print('Arquivo gerado')
+    else:
+        nets_data = NetsDataSet(cam_nets)
+        df_skubqnets = read_and_combine_files(nets_data)
+        print('Etapa BQ finalizada')
+
+
 
     # LIMPANDO DESCRICAO POIS VEM BASTANTE EXPRESSAO REGULAR
     df_skubqnets['descricao'] = df_skubqnets['descricao'].str.replace('\r', '', regex=True)
@@ -354,7 +375,7 @@ def main():
 
     del df_skubqmagalu,df_skubqnets
     gc.collect()
-
+    
     #=======================================================================================#
     # df_bqv2projcont é o é o bq + v2 (cont) + info cadastro
     #=======================================================================================#
@@ -423,6 +444,7 @@ def main():
         df_projbq4['Peso Aferido'] / df_projbq4['Apenas 1 sku'],
         0
     )
+
 
     #=======================================================================================#
     # Excluir os números de pedidos que se repetem
@@ -523,19 +545,6 @@ def main():
                 'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
                 #'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','CEP Pessoa Visita',
                 'UF Pessoa Visita']].to_csv(cam_fin,sep=';',encoding='utf-8', index=False)
-
-
-    #for col in df_projebq.columns:
-    #    for value in df_projebq[col].unique():
-    #        if isinstance(value, str):
-    #            if '\u"""2022' in value:
-    #                print(f'Caractere problemático encontrado na coluna {col}: {value}')
-
-    # Substituir o caractere de bullet point por uma string vazia ('') em todas as colunas de descrição
-    #for col in df_projebq.columns:
-    #    if 'descricao' in col.lower():  # Verificar se a coluna contém "descricao"
-    #        df_projebq[col] = df_projebq[col].str.replace('\u25fe', '', regex=False)
-
 
 if __name__ == "__main__":
     main()
