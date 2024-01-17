@@ -5,6 +5,6 @@ dimension.heightInCm as altura,
 dimension.widthInCm as largura, 
 dimension.depthInCm as profundidade, 
 weightInGrams as peso, 
- from maga-bigdata.netshoes_marketplace.mp_product_skus 
+ from {nets}
 -- unnest (sellers.list) seller 
 where sku in ('{formatted_skus}')

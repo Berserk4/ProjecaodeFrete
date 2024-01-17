@@ -223,6 +223,7 @@ def main():
     print('Iniciando BQ.')
     #bq_data = BQDataSet(cam_bq)
     #df_bq = read_and_combine_files(bq_data)
+    # etapa criada para redução de custo par cosultas feitas pelo Big query da google
     
     if not os.listdir(cam_bq):
         print('Sem arquivo na pasta, necessário consultar no BQ')
@@ -374,7 +375,7 @@ def main():
 
     del df_skubqmagalu,df_skubqnets
     gc.collect()
-
+    
     #=======================================================================================#
     # df_bqv2projcont é o é o bq + v2 (cont) + info cadastro
     #=======================================================================================#
@@ -443,6 +444,7 @@ def main():
         df_projbq4['Peso Aferido'] / df_projbq4['Apenas 1 sku'],
         0
     )
+
 
     #=======================================================================================#
     # Excluir os números de pedidos que se repetem
@@ -543,7 +545,6 @@ def main():
                 'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','Numero_Entrega_Documento', 'Valor_Mercadoria','CEP Pessoa Visita',
                 #'Peso taxado Atual','Class Peso taxado atual','Class Peso taxado recalculado','Houve mudança de faixa?','CEP Pessoa Visita',
                 'UF Pessoa Visita']].to_csv(cam_fin,sep=';',encoding='utf-8', index=False)
-
 
 if __name__ == "__main__":
     main()
