@@ -1,0 +1,1 @@
+Esse projeto tem como objetivo recalcular o preço do frete com base nos pesos que ficaram divergentes entre o medido pelo sorter e o informado pela transportadora, apartir de uma média de pesos medidos para o mesmo produto.
